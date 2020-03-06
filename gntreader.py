@@ -9,18 +9,22 @@ import time
 
 # from PIL import Image
 
-class gntReader(torch.):
+class gntReader(torch.utils.data.Dataset):
     gnt_head = np.dtype('u4, <u2, u2, u2')
 
-    def __init__(self, path):
+    def __init__(self, paths = [], transform=lambda x: x):
+        assert type(paths) == list or type(paths) == str
         self.glyph_to_code = {}
         self.code_to_glyph = []
         self.X = []
-        self.Y = []
-        with open(path, mode='rb') as file:
-            while(self._read(file)): pass
+        self.y = []
+        if type(paths) == list:
+            for path in paths:
+                self.add(path)
+        else:
+            self.add(paths)
 
-    def Read(self, path):
+    def add(self, path):
         with open(path, mode='rb') as file:
             while(self._read(file)): pass
 
@@ -48,7 +52,11 @@ class gntReader(torch.):
             self.glyph_to_code[glyph] = code
 
         self.X.append(img)
-        self.Y.append(code)
+        self.y.append(code)
+
+    def train_loader(self):
+
+        pass
 
 # gnt_struct = np.dtype([
 #     ("size", np.uintc),
@@ -85,5 +93,5 @@ if __name__ == "__main__":
     #     file.read()
     #     print(len(file.read(5)))
 
-    print(len(reader.Y))
+    print(len(reader.y))
     print(len(reader.code_to_glyph))
