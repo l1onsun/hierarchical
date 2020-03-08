@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+from torch.utils.data.sampler import SubsetRandomSampler
+from collections import defaultdict
 
 assert (np.version.version >= '1.17.0')
 
@@ -12,9 +14,11 @@ import time
 class gntReader(torch.utils.data.Dataset):
     gnt_head = np.dtype('u4, <u2, u2, u2')
 
-    def __init__(self, paths = [], transform=lambda x: x):
+    def __init__(self, paths=[], transform=lambda x: x):
         assert type(paths) == list or type(paths) == str
+        self.transform = transform
         self.glyph_to_code = {}
+        self.glyph_to_images = defaultdict(list)
         self.code_to_glyph = []
         self.X = []
         self.y = []
@@ -24,10 +28,15 @@ class gntReader(torch.utils.data.Dataset):
         else:
             self.add(paths)
 
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, index):
+        return self.transform(self.X[index]), self.y[index]
+
     def add(self, path):
         with open(path, mode='rb') as file:
-            while(self._read(file)): pass
-
+            while (self._read(file)): pass
 
     def _read(self, file):
         head_buffer = file.read(self.gnt_head.itemsize)
@@ -35,7 +44,7 @@ class gntReader(torch.utils.data.Dataset):
             return False
         head = np.frombuffer(head_buffer, dtype=self.gnt_head)
         size, tag, width, height = head[0]
-        glyph = tag.tobytes().decode('gb2312') #gb2312-80
+        glyph = tag.tobytes().decode('gb2312')  # gb2312-80
 
         img = np.frombuffer(file.read(width * height), dtype=np.uint8)
         img = img.reshape(height, width)
@@ -47,51 +56,25 @@ class gntReader(torch.utils.data.Dataset):
         if glyph in self.glyph_to_code:
             code = self.glyph_to_code[glyph]
         else:
-            code = len(self.code_to_glyph)
+            code = np.int64(len(self.code_to_glyph))
             self.code_to_glyph.append(glyph)
             self.glyph_to_code[glyph] = code
+
+        self.glyph_to_images[glyph].append(len(self.X))
 
         self.X.append(img)
         self.y.append(code)
 
-    def train_loader(self):
+    def shuffle_and_split(self, ratio, batch_size=32):
+        indices = list(range(len(self)))
+        np.random.shuffle(indices)
+        split = round(ratio * len(indices))
+        first_indices, second_indices = indices[split:], indices[:split]
+        first_sampler = SubsetRandomSampler(first_indices)
+        second_sampler = SubsetRandomSampler(second_indices)
+        first_loader = torch.utils.data.DataLoader(self, batch_size=batch_size,
+                                                   sampler=first_sampler)
+        second_loader = torch.utils.data.DataLoader(self, batch_size=batch_size,
+                                                    sampler=second_sampler)
+        return first_loader, second_loader
 
-        pass
-
-# gnt_struct = np.dtype([
-#     ("size", np.uintc),
-#     ("tag", np.byte),
-#     ("width", np.ushort),
-#     ("height", np.ushort)
-# ])
-#
-# gnt_struct2 = np.dtype([
-#     ("size", np.uint32),
-#     ("tag", np.uint16),
-#     ("width", np.uint16),
-#     ("height", np.uint16)
-# ])
-
-# prepath = "/Users/iliacherezov/Downloads/HWDB1.1trn_gnt_P1/"
-# path = prepath + "1001-c.gnt"
-#
-# data = np.fromfile(path, dtype=gnt_struct2, count=1)
-# print(data)
-# print("aligment", gnt_struct2.itemsize)
-# pixeles = np.fromfile(path, dtype=np.uint8, offset=10)
-# print(len(pixeles))
-
-if __name__ == "__main__":
-    reader = gntReader()
-    prepath = "/Users/iliacherezov/Downloads/HWDB1.1trn_gnt_P1/"
-    #path = prepath + "1001-c.gnt"
-    for i in range(3):
-        path = prepath + str(1001 + i) + "-c.gnt"
-        reader.Read(path)
-    # with open(path, mode='rb') as file:  # b is important -> binary
-    #     print(type(file))
-    #     file.read()
-    #     print(len(file.read(5)))
-
-    print(len(reader.y))
-    print(len(reader.code_to_glyph))
