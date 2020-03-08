@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch.utils.data.sampler import SubsetRandomSampler
 from collections import defaultdict
+import pickle
 
 assert (np.version.version >= '1.17.0')
 
@@ -14,19 +15,15 @@ import time
 class gntReader(torch.utils.data.Dataset):
     gnt_head = np.dtype('u4, <u2, u2, u2')
 
-    def __init__(self, paths=[], transform=lambda x: x):
-        assert type(paths) == list or type(paths) == str
+    def __init__(self, file=None, transform=lambda x: x):
         self.transform = transform
         self.glyph_to_code = {}
         self.glyph_to_images = defaultdict(list)
         self.code_to_glyph = []
         self.X = []
         self.y = []
-        if type(paths) == list:
-            for path in paths:
-                self.add(path)
-        else:
-            self.add(paths)
+        if file != None:
+            self.load_from_file(file)
 
     def __len__(self):
         return len(self.X)
@@ -75,4 +72,14 @@ class gntReader(torch.utils.data.Dataset):
         first_loader = torch.utils.data.DataLoader(self, sampler=first_sampler, **kwargs)
         second_loader = torch.utils.data.DataLoader(self, sampler=second_sampler, **kwargs)
         return first_loader, second_loader
+
+    def save_to_file(self, file):
+        with open(file, 'wb') as handle:
+            saver = [self.X, self.y, self.glyph_to_code, self.glyph_to_images, self.code_to_glyph]
+            pickle.dump(saver, handle)
+
+    def load_from_file(self, file):
+        with open(file, 'rb') as handle:
+            saver = pickle.load(handle)
+            self.X, self.y, self.glyph_to_code, self.glyph_to_images, self.code_to_glyph = saver
 
