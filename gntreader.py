@@ -22,6 +22,10 @@ class gntReader(torch.utils.data.Dataset):
         self.code_to_glyph = []
         self.X = []
         self.y = []
+
+        self.max_width = 0
+        self.max_height = 0
+
         if file != None:
             self.load_from_file(file)
 
@@ -41,6 +45,8 @@ class gntReader(torch.utils.data.Dataset):
             return False
         head = np.frombuffer(head_buffer, dtype=self.gnt_head)
         size, tag, width, height = head[0]
+        if width > self.max_width: self.max_width = width
+        if height > self.max_height: self.max_height = height
         glyph = tag.tobytes().decode('gb2312')  # gb2312-80
 
         img = np.frombuffer(file.read(width * height), dtype=np.uint8)
