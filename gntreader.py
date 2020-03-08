@@ -65,16 +65,14 @@ class gntReader(torch.utils.data.Dataset):
         self.X.append(img)
         self.y.append(code)
 
-    def shuffle_and_split(self, ratio, batch_size=32):
+    def shuffle_and_split(self, ratio, **kwargs):
         indices = list(range(len(self)))
         np.random.shuffle(indices)
         split = round(ratio * len(indices))
         first_indices, second_indices = indices[split:], indices[:split]
         first_sampler = SubsetRandomSampler(first_indices)
         second_sampler = SubsetRandomSampler(second_indices)
-        first_loader = torch.utils.data.DataLoader(self, batch_size=batch_size,
-                                                   sampler=first_sampler)
-        second_loader = torch.utils.data.DataLoader(self, batch_size=batch_size,
-                                                    sampler=second_sampler)
+        first_loader = torch.utils.data.DataLoader(self, sampler=first_sampler, **kwargs)
+        second_loader = torch.utils.data.DataLoader(self, sampler=second_sampler, **kwargs)
         return first_loader, second_loader
 
