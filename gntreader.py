@@ -68,8 +68,10 @@ class gntReader(torch.utils.data.Dataset):
         self.X.append(img)
         self.y.append(code)
 
-    def shuffle_and_split(self, ratio, **kwargs):
+    def shuffle_and_split(self, ratio, num_of_classes = -1, **kwargs):
         indices = list(range(len(self)))
+        if num_of_classes > 0:
+            indices = [x for x in indices if self.y[x] < num_of_classes]
         np.random.shuffle(indices)
         split = round(ratio * len(indices))
         first_indices, second_indices = indices[split:], indices[:split]
